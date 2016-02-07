@@ -80,5 +80,9 @@ func main() {
 		{
 			Command(h.GetStatus())
 		}
+	case "positions":
+		{
+			Command(h.GetPositions())
+		}
 	}
 }

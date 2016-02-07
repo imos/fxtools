@@ -7,3 +7,6 @@ format:
 
 build:
 	go build cli/main.go
+
+test:
+	go test ./...
