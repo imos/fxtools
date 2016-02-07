@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 type HttpClient struct {
@@ -94,19 +95,18 @@ func (h *HttpClient) Load() error {
 func (h *HttpClient) Do(method, urlStr string, query map[string]string) ([]byte, error) {
 	values := url.Values{}
 	for k, v := range query {
-		values.Add(k, v)
+		buf, _ := h.encode([]byte(v))
+		values.Add(k, string(buf))
 	}
-	q, err := h.encode([]byte(values.Encode()))
-	if err != nil {
-		return nil, err
-	}
+	q := values.Encode()
 	var resp []byte
+	var err error
 	if len(query) == 0 {
 		resp, err = h.sendRequest(method, urlStr, nil)
 	} else if method == "GET" {
-		resp, err = h.sendRequest(method, urlStr+"?"+string(q), nil)
+		resp, err = h.sendRequest(method, urlStr+"?"+q, nil)
 	} else {
-		resp, err = h.sendRequest(method, urlStr, bytes.NewReader(q))
+		resp, err = h.sendRequest(method, urlStr, strings.NewReader(q))
 	}
 	if err != nil {
 		return nil, err

@@ -6,6 +6,7 @@ import (
 	"net/url"
 	// "strconv"
 	// "github.com/imos/go/var_dump"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +28,8 @@ func getBaseQueryForOrder() map[string]string {
 	t := time.Now()
 	t.Add(time.Hour * 48)
 	return map[string]string{
+		"page_index":      "1", // NOTE: ヒロセ側が戻るページを生成するために必要
+		"prev_page_flag":  "1",
 		"symbol_code":     "",
 		"open_close_type": "",
 		"f_y":             "2015",
@@ -37,8 +40,8 @@ func getBaseQueryForOrder() map[string]string {
 		"t_y":             fmt.Sprintf("%d", t.Year()),
 		"t_m":             fmt.Sprintf("%d", t.Month()),
 		"t_d":             fmt.Sprintf("%d", t.Day()),
-		"t_h":             "00",
-		"t_min":           "00",
+		"t_h":             "23",
+		"t_min":           "59",
 	}
 }
 
@@ -85,10 +88,13 @@ func (c *HiroseClient) GetOrderList() ([]Order, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !nextPage || len(o) == 0 {
+		if len(o) == 0 {
 			break
 		}
 		orders = append(orders, o...)
+		if !nextPage {
+			break
+		}
 	}
 	return orders, nil
 }
@@ -187,8 +193,6 @@ func (c *HiroseClient) GetOrder(order Order) (*Order, error) {
 	query := getBaseQueryForOrder()
 	query["order_id"] = order.OrderId
 	query["order_method"] = order.OrderMethod
-	// NOTE: ヒロセ側が戻るページを生成するために必要
-	query["page_index"] = "1"
 	doc, err := c.FetchWithQuery("GET", "/otc/C403.html", query)
 	if err != nil {
 		return nil, err
@@ -211,4 +215,58 @@ func (c *HiroseClient) GetOrders() ([]Order, error) {
 	}
 
 	return orders, nil
+}
+
+func (c *HiroseClient) CancelOrder(order Order) error {
+	query := getBaseQueryForOrder()
+	query["order_id"] = order.OrderId
+	query["order_method"] = order.OrderMethod
+	doc, err := c.FetchWithQuery("GET", "/otc/CT01.html", query)
+	if err != nil {
+		return err
+	}
+	f := doc.Find("form").First()
+	if a, _ := f.Attr("action"); a != "CT02.html" {
+		return errors.New("cancel button is not found.")
+	}
+
+	query = map[string]string{}
+	f.Find("input").Each(func(_ int, s *goquery.Selection) {
+		name, _ := s.Attr("name")
+		value, _ := s.Attr("value")
+		query[name] = value
+	})
+
+	doc, err = c.FetchWithQuery("POST", "/otc/CT02.html", query)
+	if err != nil {
+		return err
+	}
+	t := doc.Find("div").First().Text()
+	if t != ">注文取消受付<" {
+		return fmt.Errorf("cannot open \"注文取消受付\", but %#v", t)
+	}
+
+	return nil
+}
+
+func (c *HiroseClient) CancelOrders() error {
+	orders, err := c.GetOrderList()
+	if err != nil {
+		return err
+	}
+
+	canceled := map[string]bool{}
+	for _, order := range orders {
+		if canceled[order.OrderId] {
+			continue
+		}
+		err := c.CancelOrder(order)
+		if err != nil {
+			return fmt.Errorf("failed to cancel %s-%s: %#v", order.OrderId, order.OrderMethod, err)
+		}
+		canceled[order.OrderId] = true
+		return nil
+	}
+
+	return nil
 }

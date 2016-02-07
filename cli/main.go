@@ -88,5 +88,9 @@ func main() {
 		{
 			Command(h.GetOrders())
 		}
+	case "cancel":
+		{
+			Command(nil, h.CancelOrders())
+		}
 	}
 }
