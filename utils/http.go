@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 )
 
 type HttpClient struct {
@@ -21,11 +22,13 @@ type HttpClient struct {
 func (h *HttpClient) getHttpClient() (*http.Client, error) {
 	if !h.initialized {
 		h.initialized = true
-		cookie, err := cookiejar.New(nil)
-		if err != nil {
-			return nil, err
+		if h.cookie == nil {
+			cookie, err := cookiejar.New(nil)
+			if err != nil {
+				return nil, err
+			}
+			h.cookie = cookie
 		}
-		h.cookie = cookie
 	}
 	return &http.Client{
 		Jar: h.cookie,
@@ -42,6 +45,9 @@ func (h *HttpClient) sendRequest(method, urlStr string, body io.Reader) ([]byte,
 		"Mozilla/5.0 (iPhone; CPU iPhone OS 8_4_1 like Mac OS X) "+
 			"AppleWebKit/600.1.4 (KHTML, like Gecko) Version/8.0 "+
 			"Mobile/12H321 Safari/600.1.4")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
 	client, err := h.getHttpClient()
 	if err != nil {
 		return nil, err
@@ -70,12 +76,19 @@ func (h *HttpClient) decode(buf []byte) ([]byte, error) {
 	return ioutil.ReadAll(transform.NewReader(bytes.NewReader(buf), japanese.ShiftJIS.NewDecoder()))
 }
 
-func (h *HttpClient) Save(filename string) error {
-	return h.cookie.Save(filename)
+func (h *HttpClient) Save() error {
+	return h.cookie.Save(os.Getenv("HOME") + "/.fxcookie")
 }
 
-func (h *HttpClient) Load(filename string) error {
-	return h.cookie.Load(filename)
+func (h *HttpClient) Load() error {
+	if h.cookie == nil {
+		cookie, err := cookiejar.New(nil)
+		if err != nil {
+			return err
+		}
+		h.cookie = cookie
+	}
+	return h.cookie.Load(os.Getenv("HOME") + "/.fxcookie")
 }
 
 func (h *HttpClient) Do(method, urlStr string, query map[string]string) ([]byte, error) {
@@ -88,12 +101,10 @@ func (h *HttpClient) Do(method, urlStr string, query map[string]string) ([]byte,
 		return nil, err
 	}
 	var resp []byte
-	if method == "GET" {
-		if len(query) == 0 {
-			resp, err = h.sendRequest(method, urlStr, nil)
-		} else {
-			resp, err = h.sendRequest(method, urlStr+"?"+string(q), nil)
-		}
+	if len(query) == 0 {
+		resp, err = h.sendRequest(method, urlStr, nil)
+	} else if method == "GET" {
+		resp, err = h.sendRequest(method, urlStr+"?"+string(q), nil)
 	} else {
 		resp, err = h.sendRequest(method, urlStr, bytes.NewReader(q))
 	}
