@@ -84,5 +84,9 @@ func main() {
 		{
 			Command(h.GetPositions())
 		}
+	case "orders":
+		{
+			Command(h.GetOrders())
+		}
 	}
 }
