@@ -63,20 +63,20 @@ type Jar struct {
 	// mu locks the remaining fields.
 	mu sync.Mutex
 
-	// entries is a set of entries, keyed by their eTLD+1 and subkeyed by
+	// Entries is a set of Entries, keyed by their eTLD+1 and subkeyed by
 	// their name/domain/path.
-	entries map[string]map[string]entry
+	Entries map[string]map[string]entry
 
-	// nextSeqNum is the next sequence number assigned to a new cookie
+	// NextSeqNum is the next sequence number assigned to a new cookie
 	// created SetCookies.
-	nextSeqNum uint64
+	NextSeqNum uint64
 }
 
 // New returns a new cookie jar. A nil *Options is equivalent to a zero
 // Options.
 func New(o *Options) (*Jar, error) {
 	jar := &Jar{
-		entries: make(map[string]map[string]entry),
+		Entries: make(map[string]map[string]entry),
 	}
 	if o != nil {
 		jar.psList = o.PublicSuffixList
@@ -101,10 +101,10 @@ type entry struct {
 	Creation   time.Time
 	LastAccess time.Time
 
-	// seqNum is a sequence number so that Cookies returns cookies in a
+	// SeqNum is a sequence number so that Cookies returns cookies in a
 	// deterministic order, even for cookies that have equal Path length and
 	// equal Creation time. This simplifies testing.
-	seqNum uint64
+	SeqNum uint64
 }
 
 // Id returns the domain;path;name triple of e as an id.
@@ -160,7 +160,7 @@ func (s byPathLength) Less(i, j int) bool {
 	if !s[i].Creation.Equal(s[j].Creation) {
 		return s[i].Creation.Before(s[j].Creation)
 	}
-	return s[i].seqNum < s[j].seqNum
+	return s[i].SeqNum < s[j].SeqNum
 }
 
 func (s byPathLength) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
@@ -186,7 +186,7 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	submap := j.entries[key]
+	submap := j.Entries[key]
 	if submap == nil {
 		return cookies
 	}
@@ -215,9 +215,9 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 	}
 	if modified {
 		if len(submap) == 0 {
-			delete(j.entries, key)
+			delete(j.Entries, key)
 		} else {
-			j.entries[key] = submap
+			j.Entries[key] = submap
 		}
 	}
 
@@ -254,7 +254,7 @@ func (j *Jar) setCookies(u *url.URL, cookies []*http.Cookie, now time.Time) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	submap := j.entries[key]
+	submap := j.Entries[key]
 
 	modified := false
 	for _, cookie := range cookies {
@@ -278,11 +278,11 @@ func (j *Jar) setCookies(u *url.URL, cookies []*http.Cookie, now time.Time) {
 
 		if old, ok := submap[id]; ok {
 			e.Creation = old.Creation
-			e.seqNum = old.seqNum
+			e.SeqNum = old.SeqNum
 		} else {
 			e.Creation = now
-			e.seqNum = j.nextSeqNum
-			j.nextSeqNum++
+			e.SeqNum = j.NextSeqNum
+			j.NextSeqNum++
 		}
 		e.LastAccess = now
 		submap[id] = e
@@ -291,9 +291,9 @@ func (j *Jar) setCookies(u *url.URL, cookies []*http.Cookie, now time.Time) {
 
 	if modified {
 		if len(submap) == 0 {
-			delete(j.entries, key)
+			delete(j.Entries, key)
 		} else {
-			j.entries[key] = submap
+			j.Entries[key] = submap
 		}
 	}
 }

@@ -57,17 +57,25 @@ func (h *HttpClient) sendRequest(method, urlStr string, body io.Reader) ([]byte,
 }
 
 func (h *HttpClient) encode(buf []byte) ([]byte, error) {
-	if h.UseSjis {
+	if !h.UseSjis {
 		return buf, nil
 	}
 	return ioutil.ReadAll(transform.NewReader(bytes.NewReader(buf), japanese.ShiftJIS.NewEncoder()))
 }
 
 func (h *HttpClient) decode(buf []byte) ([]byte, error) {
-	if h.UseSjis {
+	if !h.UseSjis {
 		return buf, nil
 	}
 	return ioutil.ReadAll(transform.NewReader(bytes.NewReader(buf), japanese.ShiftJIS.NewDecoder()))
+}
+
+func (h *HttpClient) Save(filename string) error {
+	return h.cookie.Save(filename)
+}
+
+func (h *HttpClient) Load(filename string) error {
+	return h.cookie.Load(filename)
 }
 
 func (h *HttpClient) Do(method, urlStr string, query map[string]string) ([]byte, error) {

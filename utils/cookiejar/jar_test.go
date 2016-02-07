@@ -320,7 +320,7 @@ func mustParseURL(s string) *url.URL {
 // jarTest encapsulates the following actions on a jar:
 //   1. Perform SetCookies with fromURL and the cookies from setCookies.
 //      (Done at time tNow + 0 ms.)
-//   2. Check that the entries in the jar matches content.
+//   2. Check that the Entries in the jar matches content.
 //      (Done at time tNow + 1001 ms.)
 //   3. For each query in tests: Check that Cookies with toURL yields the
 //      cookies in want.
@@ -355,9 +355,9 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
 	jar.setCookies(mustParseURL(test.fromURL), setCookies, now)
 	now = now.Add(1001 * time.Millisecond)
 
-	// Serialize non-expired entries in the form "name1=val1 name2=val2".
+	// Serialize non-expired Entries in the form "name1=val1 name2=val2".
 	var cs []string
-	for _, submap := range jar.entries {
+	for _, submap := range jar.Entries {
 		for _, cookie := range submap {
 			if !cookie.Expires.After(now) {
 				continue
