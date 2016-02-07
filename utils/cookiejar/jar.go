@@ -8,7 +8,6 @@ package cookiejar
 import (
 	"errors"
 	"fmt"
-	"github.com/imos/go/var_dump"
 	"net"
 	"net/http"
 	"net/url"
@@ -234,9 +233,6 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 //
 // It does nothing if the URL's scheme is not HTTP or HTTPS.
 func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
-	fmt.Println("Calling SetCookies...")
-	var_dump.Print(u)
-	var_dump.Print(cookies)
 	j.setCookies(u, cookies, time.Now())
 }
 

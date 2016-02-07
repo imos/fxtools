@@ -2,12 +2,25 @@ package main
 
 import (
 	"../hirose"
+	"encoding/json"
 	"flag"
 	"log"
 	"os"
 	// utils "../utils"
-	// "fmt"
+	"fmt"
 )
+
+func Command(result interface{}, err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+	buf, err := json.Marshal(result)
+	if err != nil {
+		log.Fatal("failed to marshal: %v", err)
+	}
+	fmt.Println(string(buf))
+	os.Exit(0)
+}
 
 func main() {
 	// c := utils.HttpClient{}
@@ -49,18 +62,23 @@ func main() {
 		log.Fatalf("Failed to sign in.")
 		os.Exit(1)
 	}
+
+	result, err := h.IsSignedIn()
+	if err != nil {
+		panic(err)
+	}
+	if !result {
+		log.Printf("Session is expired.")
+		os.Exit(1)
+	}
+	if command == "check" {
+		os.Exit(0)
+	}
+
 	switch command {
-	case "check":
+	case "status":
 		{
-			result, err := h.IsSignedIn()
-			if err != nil {
-				panic(err)
-			}
-			if result {
-				os.Exit(0)
-			}
-			os.Exit(1)
-			break
+			Command(h.GetStatus())
 		}
 	}
 }
